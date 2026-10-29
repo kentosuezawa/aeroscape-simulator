@@ -6,6 +6,7 @@ import { Vector3, type Group } from "three";
 import { Drone } from "./Drone";
 import { World } from "./World";
 import { Seabirds } from "./Seabirds";
+import { MobileControls } from "./MobileControls";
 import { environments, type EnvironmentId } from "@/lib/world";
 import {
   createFlightState,
@@ -55,21 +56,23 @@ const controls = [
   ["画面ダブルクリック", "視点を初期位置へ"],
 ];
 
-function readInput(keys: Set<string>): FlightInput {
+function readInput(keys: Set<string>, touch: FlightInput): FlightInput {
+  const clamp = (n: number) => Math.max(-1, Math.min(1, n));
   const axis = (plus: string, minus: string) => Number(keys.has(plus)) - Number(keys.has(minus));
   return {
-    forward: axis("KeyW", "KeyS"),
-    right: axis("KeyD", "KeyA"),
-    up: Number(keys.has("Space")) - Number(keys.has("ShiftLeft") || keys.has("ShiftRight")),
-    yaw: axis("KeyE", "KeyQ"),
+    forward: clamp(axis("KeyW", "KeyS") + touch.forward),
+    right: clamp(axis("KeyD", "KeyA") + touch.right),
+    up: clamp(Number(keys.has("Space")) - Number(keys.has("ShiftLeft") || keys.has("ShiftRight")) + touch.up),
+    yaw: clamp(axis("KeyE", "KeyQ") + touch.yaw),
   };
 }
 
 function SceneController({
-  flight, keys, environment, windSpeed, windDirection, hour, paused, cameraMode, birdCount, onTelemetry,
+  flight, keys, touchInput, environment, windSpeed, windDirection, hour, paused, cameraMode, birdCount, onTelemetry,
 }: {
   flight: RefObject<FlightState>;
   keys: RefObject<Set<string>>;
+  touchInput: RefObject<FlightInput>;
   environment: EnvironmentId;
   windSpeed: number;
   windDirection: number;
@@ -170,7 +173,7 @@ function SceneController({
       const steps = Math.max(1, Math.ceil(boundedDelta / (1 / 60)));
       const substep = boundedDelta / steps;
       for (let i = 0; i < steps; i++) {
-        stepFlight(f, readInput(keys.current), environment, {
+        stepFlight(f, readInput(keys.current, touchInput.current), environment, {
           speed: windSpeed, direction: windDirection,
         }, substep);
       }
@@ -186,7 +189,7 @@ function SceneController({
 
     view.azimuth += (Number(keys.current.has("ArrowLeft")) - Number(keys.current.has("ArrowRight"))) * delta * 1.35;
     const lookVertical = Number(keys.current.has("ArrowUp")) - Number(keys.current.has("ArrowDown"));
-    view.elevation += lookVertical * delta * 0.85;
+    view.elevation += (cameraMode === "fpv" ? 1 : -1) * lookVertical * delta * 0.85;
     view.elevation = Math.max(
       cameraMode === "fpv" ? -1.35 : cameraMode === "top" ? 0.22 : -0.2,
       Math.min(cameraMode === "fpv" ? 1.35 : 1.53, view.elevation)
@@ -238,9 +241,28 @@ export default function Simulator() {
   const [paused, setPaused] = useState(false);
   const [showHelp, setShowHelp] = useState(true);
   const [birdCount, setBirdCount] = useState(96);
+  const [isTouch, setIsTouch] = useState(false);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   const flight = useRef<FlightState>(createFlightState());
   const keys = useRef<Set<string>>(new Set());
+  const touchInput = useRef<FlightInput>({ forward: 0, right: 0, up: 0, yaw: 0 });
+
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: coarse)");
+    const updateTouch = () => {
+      const mobile = mq.matches || window.innerWidth <= 700;
+      setIsTouch(mobile);
+      if (mobile) setShowHelp(false);
+    };
+    updateTouch();
+    mq.addEventListener("change", updateTouch);
+    window.addEventListener("resize", updateTouch);
+    return () => {
+      mq.removeEventListener("change", updateTouch);
+      window.removeEventListener("resize", updateTouch);
+    };
+  }, []);
   const [telemetry, setTelemetry] = useState<Telemetry>({
     altitude: 0, speed: 0, heading: 0, elapsed: 0, status: "grounded", x: 0, z: 0,
   });
@@ -260,6 +282,7 @@ export default function Simulator() {
   const resetFlight = useCallback(() => {
     flight.current = createFlightState();
     keys.current.clear();
+    touchInput.current = { forward: 0, right: 0, up: 0, yaw: 0 };
     setPaused(false);
     updateTelemetry(flight.current);
   }, [updateTelemetry]);
@@ -268,7 +291,9 @@ export default function Simulator() {
     setEnvironment(next);
     flight.current = createFlightState();
     keys.current.clear();
+    touchInput.current = { forward: 0, right: 0, up: 0, yaw: 0 };
     setPaused(false);
+    setShowMobileSettings(false);
     setTelemetry({ altitude: 0, speed: 0, heading: 0, elapsed: 0, status: "grounded", x: 0, z: 0 });
   };
 
@@ -299,7 +324,10 @@ export default function Simulator() {
       }
     };
     const onKeyUp = (event: KeyboardEvent) => keys.current.delete(event.code);
-    const onBlur = () => keys.current.clear();
+    const onBlur = () => {
+      keys.current.clear();
+      touchInput.current = { forward: 0, right: 0, up: 0, yaw: 0 };
+    };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
@@ -317,9 +345,14 @@ export default function Simulator() {
   return (
     <main className="sim-shell">
       <div className="scene-canvas" aria-label="3D drone simulator">
-        <Canvas shadows dpr={[1, 1.7]} camera={{ fov: 62, near: 0.1, far: 500, position: [0, 5, 12] }} gl={{ antialias: true }}>
+        <Canvas
+          shadows={!isTouch}
+          dpr={isTouch ? [1, 1.25] : [1, 1.7]}
+          camera={{ fov: 62, near: 0.1, far: 500, position: [0, 5, 12] }}
+          gl={{ antialias: !isTouch }}
+        >
           <SceneController
-            flight={flight} keys={keys} environment={environment}
+            flight={flight} keys={keys} touchInput={touchInput} environment={environment}
             windSpeed={windSpeed} windDirection={windDirection} hour={hour}
             paused={paused} cameraMode={cameraMode} birdCount={birdCount} onTelemetry={updateTelemetry}
           />
@@ -332,7 +365,7 @@ export default function Simulator() {
         </div>
         <div className="header-meta">
           <span className="header-pill"><span className="green-dot" /> LOCAL SIMULATION</span>
-          <span className="header-pill subtle">v0.2</span>
+          <span className="header-pill subtle">v0.3</span>
         </div>
       </header>
 
@@ -351,7 +384,18 @@ export default function Simulator() {
         <p className="hud-note">*表示速度は対地速度の近似値です。</p>
       </section>
 
-      <aside className="control-panel" aria-label="Simulation settings">
+      <nav className="mobile-top-actions" aria-label="モバイルメニュー">
+        <button type="button" onClick={() => { setShowMobileSettings(v => !v); setShowHelp(false); }}
+          aria-expanded={showMobileSettings}>
+          {showMobileSettings ? "設定を閉じる" : "環境・風の設定"}
+        </button>
+        <button type="button" onClick={() => { setShowHelp(v => !v); setShowMobileSettings(false); }}
+          aria-expanded={showHelp}>
+          {showHelp ? "ガイドを閉じる" : "操作ガイド"}
+        </button>
+      </nav>
+
+      <aside className={`control-panel ${showMobileSettings ? "mobile-open" : ""}`} aria-label="Simulation settings">
         <div className="panel-heading"><span>SIMULATION SETTINGS</span><span className="panel-lines">≡</span></div>
         <label className="field">
           <span>環境 <em>ENVIRONMENT</em></span>
@@ -412,6 +456,18 @@ export default function Simulator() {
           <button type="button" onClick={resetFlight}>リセット</button>
         </div>
       </aside>
+
+      {isTouch && (
+        <MobileControls
+          input={touchInput}
+          flightStatus={telemetry.status}
+          paused={paused}
+          onToggleFlight={() => toggleTakeoffLanding(flight.current)}
+          onCycleCamera={nextCamera}
+          onTogglePause={() => setPaused(value => !value)}
+          onReset={resetFlight}
+        />
+      )}
 
       <div className="world-label"><span className="world-label-caption">ACTIVE WORLD</span><strong>{activeEnvironment.label}</strong></div>
 
