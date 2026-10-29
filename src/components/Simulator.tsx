@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Vector3, type Group } from "three";
 import { Drone } from "./Drone";
 import { World } from "./World";
+import { Seabirds } from "./Seabirds";
 import { environments, type EnvironmentId } from "@/lib/world";
 import {
   createFlightState,
@@ -48,6 +49,10 @@ const controls = [
   ["Space / Shift", "上昇・下降"], ["Q / E", "左右旋回"],
   ["T", "自動離陸・着陸"], ["C", "カメラ変更"],
   ["P", "一時停止"], ["R", "リセット"], ["H", "操作ガイド"],
+  ["マウスドラッグ", "視点を上下左右に回す"],
+  ["マウスホイール", "距離を変更（FPV以外）"],
+  ["矢印キー", "視点を上下左右に回す"],
+  ["画面ダブルクリック", "視点を初期位置へ"],
 ];
 
 function readInput(keys: Set<string>): FlightInput {
@@ -61,7 +66,7 @@ function readInput(keys: Set<string>): FlightInput {
 }
 
 function SceneController({
-  flight, keys, environment, windSpeed, windDirection, hour, paused, cameraMode, onTelemetry,
+  flight, keys, environment, windSpeed, windDirection, hour, paused, cameraMode, birdCount, onTelemetry,
 }: {
   flight: RefObject<FlightState>;
   keys: RefObject<Set<string>>;
@@ -71,10 +76,89 @@ function SceneController({
   hour: number;
   paused: boolean;
   cameraMode: CameraMode;
+  birdCount: number;
   onTelemetry: (flight: FlightState) => void;
 }) {
   const drone = useRef<Group>(null);
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
+  const cameraViews = useRef<Record<CameraMode, { azimuth: number; elevation: number; distance: number }>>({
+    follow: { azimuth: 0, elevation: 0.33, distance: 11 },
+    fpv: { azimuth: 0, elevation: 0, distance: 0 },
+    top: { azimuth: 0, elevation: 1.36, distance: 26 },
+  });
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    let dragging: { pointerId: number; x: number; y: number } | null = null;
+    canvas.style.cursor = "grab";
+    canvas.style.touchAction = "none";
+
+    const onDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      dragging = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+      canvas.setPointerCapture(event.pointerId);
+      canvas.style.cursor = "grabbing";
+    };
+    const onMove = (event: PointerEvent) => {
+      if (!dragging || dragging.pointerId !== event.pointerId) return;
+      const dx = event.clientX - dragging.x;
+      const dy = event.clientY - dragging.y;
+      dragging.x = event.clientX;
+      dragging.y = event.clientY;
+
+      const view = cameraViews.current[cameraMode];
+      view.azimuth -= dx * 0.005;
+      view.elevation += (cameraMode === "fpv" ? -1 : 1) * dy * 0.0045;
+      const min = cameraMode === "fpv" ? -1.35 : cameraMode === "top" ? 0.22 : -0.2;
+      const max = cameraMode === "fpv" ? 1.35 : 1.53;
+      view.elevation = Math.max(min, Math.min(max, view.elevation));
+    };
+    const onUp = (event: PointerEvent) => {
+      if (dragging?.pointerId !== event.pointerId) return;
+      dragging = null;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      canvas.style.cursor = "grab";
+    };
+    const onLostCapture = () => {
+      dragging = null;
+      canvas.style.cursor = "grab";
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (cameraMode === "fpv") return;
+      event.preventDefault();
+      const view = cameraViews.current[cameraMode];
+      view.distance = Math.min(
+        cameraMode === "top" ? 65 : 26,
+        Math.max(cameraMode === "top" ? 12 : 4.5, view.distance + event.deltaY * 0.012)
+      );
+    };
+    const onDoubleClick = (event: MouseEvent) => {
+      event.preventDefault();
+      cameraViews.current[cameraMode] = cameraMode === "follow"
+        ? { azimuth: 0, elevation: 0.33, distance: 11 }
+        : cameraMode === "fpv"
+          ? { azimuth: 0, elevation: 0, distance: 0 }
+          : { azimuth: 0, elevation: 1.36, distance: 26 };
+    };
+    canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerup", onUp);
+    canvas.addEventListener("pointercancel", onUp);
+    canvas.addEventListener("lostpointercapture", onLostCapture);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("dblclick", onDoubleClick);
+    return () => {
+      canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointercancel", onUp);
+      canvas.removeEventListener("lostpointercapture", onLostCapture);
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("dblclick", onDoubleClick);
+      canvas.style.cursor = "";
+      canvas.style.touchAction = "";
+    };
+  }, [cameraMode, gl]);
   const lastTelemetry = useRef(0);
   const desiredCamera = useRef(new Vector3());
   const lookAt = useRef(new Vector3());
@@ -98,17 +182,34 @@ function SceneController({
     }
 
     const [x, y, z] = f.position;
-    const sin = Math.sin(f.yaw);
-    const cos = Math.cos(f.yaw);
+    const view = cameraViews.current[cameraMode];
+
+    view.azimuth += (Number(keys.current.has("ArrowLeft")) - Number(keys.current.has("ArrowRight"))) * delta * 1.35;
+    const lookVertical = Number(keys.current.has("ArrowUp")) - Number(keys.current.has("ArrowDown"));
+    view.elevation += lookVertical * delta * 0.85;
+    view.elevation = Math.max(
+      cameraMode === "fpv" ? -1.35 : cameraMode === "top" ? 0.22 : -0.2,
+      Math.min(cameraMode === "fpv" ? 1.35 : 1.53, view.elevation)
+    );
+    const lookYaw = f.yaw + view.azimuth;
+
     if (cameraMode === "fpv") {
-      desiredCamera.current.set(x + sin * 0.9, y + 0.18, z - cos * 0.9);
-      lookAt.current.set(x + sin * 50, y + 0.08, z - cos * 50);
-    } else if (cameraMode === "top") {
-      desiredCamera.current.set(x + 0.01, y + 23, z + 0.01);
-      lookAt.current.set(x, y, z);
+      desiredCamera.current.set(
+        x + Math.sin(f.yaw) * 0.63, y + 0.2, z - Math.cos(f.yaw) * 0.63
+      );
+      lookAt.current.set(
+        desiredCamera.current.x + Math.sin(lookYaw) * Math.cos(view.elevation) * 50,
+        desiredCamera.current.y + Math.sin(view.elevation) * 50,
+        desiredCamera.current.z - Math.cos(lookYaw) * Math.cos(view.elevation) * 50
+      );
     } else {
-      desiredCamera.current.set(x - sin * 10, y + 4.3, z + cos * 10);
-      lookAt.current.set(x + sin * 2, y + 0.65, z - cos * 2);
+      const horizontal = Math.cos(view.elevation) * view.distance;
+      desiredCamera.current.set(
+        x - Math.sin(lookYaw) * horizontal,
+        y + Math.sin(view.elevation) * view.distance,
+        z + Math.cos(lookYaw) * horizontal
+      );
+      lookAt.current.set(x, y + 0.3, z);
     }
     camera.position.lerp(desiredCamera.current, 1 - Math.exp(-Math.min(delta, 0.1) * 5.5));
     camera.lookAt(lookAt.current);
@@ -122,6 +223,7 @@ function SceneController({
   return (
     <>
       <World environment={environment} hour={hour} />
+      {environment === "ocean" && <Seabirds flight={flight} paused={paused} count={birdCount} />}
       <Drone ref={drone} spinning={!paused && flight.current.status !== "grounded" && flight.current.status !== "crashed"} />
     </>
   );
@@ -135,6 +237,7 @@ export default function Simulator() {
   const [cameraMode, setCameraMode] = useState<CameraMode>("follow");
   const [paused, setPaused] = useState(false);
   const [showHelp, setShowHelp] = useState(true);
+  const [birdCount, setBirdCount] = useState(96);
 
   const flight = useRef<FlightState>(createFlightState());
   const keys = useRef<Set<string>>(new Set());
@@ -218,7 +321,7 @@ export default function Simulator() {
           <SceneController
             flight={flight} keys={keys} environment={environment}
             windSpeed={windSpeed} windDirection={windDirection} hour={hour}
-            paused={paused} cameraMode={cameraMode} onTelemetry={updateTelemetry}
+            paused={paused} cameraMode={cameraMode} birdCount={birdCount} onTelemetry={updateTelemetry}
           />
         </Canvas>
       </div>
@@ -229,7 +332,7 @@ export default function Simulator() {
         </div>
         <div className="header-meta">
           <span className="header-pill"><span className="green-dot" /> LOCAL SIMULATION</span>
-          <span className="header-pill subtle">v0.1</span>
+          <span className="header-pill subtle">v0.2</span>
         </div>
       </header>
 
@@ -284,7 +387,22 @@ export default function Simulator() {
             </button>
           ))}
         </div>
-        <p className="camera-caption">{cameraLabels[cameraMode]}</p>
+        <p className="camera-caption">{cameraLabels[cameraMode]} · ドラッグ / 矢印キーで上下左右を見回す · ダブルクリックで視点を戻す</p>
+        {environment === "ocean" && (
+          <>
+            <div className="panel-divider" />
+            <div className="panel-section-title">SEABIRD ATTRACTION</div>
+            <label className="field">
+              <span>海鳥の群れ <b>{birdCount} 羽</b></span>
+              <select value={birdCount} onChange={event => setBirdCount(Number(event.target.value))}>
+                <option value={24}>少なめ · 24羽</option>
+                <option value={60}>標準 · 60羽</option>
+                <option value={96}>大量 · 96羽</option>
+              </select>
+              <small>海上に群れが次々と現れ、機体の近くを飛び抜けます。描画負荷が高い場合は羽数を減らしてください。</small>
+            </label>
+          </>
+        )
         <div className="action-buttons">
           <button className="primary-action" type="button" disabled={telemetry.status === "crashed"}
             onClick={() => toggleTakeoffLanding(flight.current)}>
