@@ -12,6 +12,8 @@ A browser-based 3D drone flight simulator built with **Next.js, TypeScript, Thre
 - Drone body pitch/roll, spinning propellers and follow/FPV/top cameras with independent free-look
 - Mouse drag or arrow keys to look around in **every** camera mode; mouse wheel zoom for follow/top
 - Ocean-only animated seabird flybys: 8 repeating flocks, up to 96 birds, adjustable density
+- Mobile browser controls with two multitouch joysticks, flight/camera buttons and on-screen settings
+- Adaptive touch layout and reduced WebGL render resolution/shadows on mobile for performance
 - Configurable sunlight (time of day), wind speed and direction
 - Flight telemetry: altitude, speed, heading and flight status
 - Static-export deployment to GitHub Pages
@@ -43,6 +45,25 @@ Open http://localhost:3000. Run checks using `npm run typecheck` and `npm run bu
 | Mouse drag / arrow keys | Rotate/look up/down in the active camera |
 | Mouse wheel | Zoom follow / overhead camera |
 | Double-click on 3D view | Reset current camera angle |
+
+## Smartphone controls (v0.3)
+
+Open the **same GitHub Pages URL** on a recent mobile browser supporting WebGL2. No app installation is required.
+
+| Control | Action |
+| --- | --- |
+| Left virtual joystick, up/down | Fly forward/backward |
+| Left virtual joystick, left/right | Strafe left/right |
+| Right virtual joystick, up/down | Climb/descend |
+| Right virtual joystick, left/right | Turn left/right |
+| Swipe/drag on empty 3D viewport | Look around in current camera |
+| Double tap on empty 3D viewport | Reset camera look |
+| On-screen actions | Take off / land, camera, pause, reset |
+| Top right menus | Environment, sunlight, wind, seabirds, help |
+
+The 3D viewport does **not** use an on-screen joystick for looking around: drag directly on an unoccupied portion of the scene. Multitouch allows steering while changing camera direction. For dense ocean scenes, reduce seabird count if your device becomes slow.
+
+Mobile devices with limited WebGL resources may have reduced performance. This is a first mobile UI iteration and does not claim validated compatibility with every iOS/Android device.
 
 ## GitHub Pages
 
