@@ -1,4 +1,4 @@
-# AeroScape Simulator – Requirements v1.2
+# AeroScape Simulator – Requirements v1.3
 
 ## Product objective
 
@@ -9,6 +9,8 @@ Develop a high-fidelity **browser-based** drone simulator with intuitive, game-l
 - Keyboard-operated assisted flight (WASD, Space/Shift, Q/E)
 - Automatic stabilization rather than requiring the user to control four rotor outputs
 - Takeoff/land, pause/resume, reset, camera switching and HUD
+- Independent camera look direction for follow, FPV and overhead viewpoints
+- Mouse drag and arrow keys adjust yaw/elevation, double-click resets view, scroll zooms follow/overhead
 - Customizable environment, time of day, wind speed and wind direction
 - Consistent behavior across frame rates and safe release of stuck keyboard input
 
@@ -39,6 +41,7 @@ For physically accurate operation, upgrade to:
 - **Mountains:** terrain heightfield, forests, ridge/slope wind and long-distance landscape
 - **Rice paddies:** irrigated fields, levees, irrigation channels, vegetation and seasonal options
 - **Ocean:** coastline, water with waves, shoreline obstacles and sea wind
+- **Ocean attraction:** up to 96 visually animated seabirds in repeating flocks, with adjustable density (24 / 60 / 96); waves cross near the drone. For now, birds are visual only (no collision, scoring, audio or AI evasive behavior)
 - **Lighting:** moving directional sun, shadow maps, sky colors and eventually physically based atmospheric scattering
 - **Quality:** GLB assets, compressed textures, level-of-detail, instancing, chunk-based loading, frame-rate presets
 
@@ -50,6 +53,9 @@ For physically accurate operation, upgrade to:
 - Time of day changes lighting and shadow direction.
 - Wind settings affect simulated movement.
 - Camera modes, pause, reset and focus-loss key clearing behave correctly.
+- Mouse drag, arrow keys and double-click work in each of the three camera modes, without changing flight controls.
+- Ocean world spawns and animates seabird flocks, while all other environments do not.
+- Bird density can be adjusted while flying without reloading the scene, and GPU draw calls remain bounded through instancing.
 - Static `next build` produces an `out/` directory for GitHub Pages.
 
 **Status:** These are acceptance criteria, not claims of completed verification. CI and browser testing must confirm them.
