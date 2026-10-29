@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Color, Object3D, type InstancedMesh } from "three";
+import { Color, DynamicDrawUsage, Object3D, type InstancedMesh } from "three";
 import type { FlightState } from "@/lib/flight";
 import type { RefObject } from "react";
 
@@ -50,7 +50,7 @@ export function Seabirds({
     for (const mesh of [bodies.current, leftWings.current, rightWings.current, tips.current]) {
       if (!mesh) continue;
       mesh.count = active;
-      mesh.instanceMatrix.setUsage(35048); // DynamicDrawUsage
+      mesh.instanceMatrix.setUsage(DynamicDrawUsage);
       mesh.frustumCulled = false;
     }
   }, [active]);
@@ -110,10 +110,24 @@ export function Seabirds({
       const fz = -Math.cos(direction);
       const rx = Math.cos(direction);
       const rz = Math.sin(direction);
-      const x = anchor.x + fx * forwards + rx * sideways;
-      const z = anchor.z + fz * forwards + rz * sideways;
-      const y = Math.max(5.5, anchor.y + 7 + (member % 6) * 1.0
-        + Math.sin(t * 0.8 + member * 0.65) * 1.2);
+      let x = anchor.x + fx * forwards + rx * sideways;
+      let z = anchor.z + fz * forwards + rz * sideways;
+      let y = Math.max(2.8, anchor.y + 2.3 + (member % 6) * 0.85
+        + Math.sin(t * 0.8 + member * 0.65) * 0.9);
+
+      // Birds pass near the player's flight path, then visually veer away.
+      // This is an attraction effect, not a rigid-body bird collision system.
+      const awayX = x - state.position[0];
+      const awayY = y - state.position[1];
+      const awayZ = z - state.position[2];
+      const separation = Math.hypot(awayX, awayY, awayZ);
+      if (separation < 6) {
+        const force = (6 - separation) / 6;
+        const invDistance = 1 / Math.max(0.001, separation);
+        x += awayX * invDistance * force * 5;
+        z += awayZ * invDistance * force * 5;
+        y += force * 2.5;
+      }
       const yaw = direction + Math.PI + Math.sin(t * 0.16 + flockIndex) * 0.2;
       const scale = 0.7 + (member % 5) * 0.085;
       const flap = 0.55 * Math.sin(t * (5.3 + (i % 4) * 0.38) + member * 0.76);
