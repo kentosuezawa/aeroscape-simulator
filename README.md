@@ -9,7 +9,9 @@ A browser-based 3D drone flight simulator built with **Next.js, TypeScript, Thre
 - Keyboard-driven assisted flight: **W/A/S/D** move, **Space/Shift** climb/descend, **Q/E** yaw
 - **T** auto takeoff/land, **P** pause/resume, **R** reset, **C** switch camera
 - Four procedural environments: **City / Mountains / Rice fields / Ocean**
-- Drone body pitch/roll, spinning propellers and follow/FPV/top cameras
+- Drone body pitch/roll, spinning propellers and follow/FPV/top cameras with independent free-look
+- Mouse drag or arrow keys to look around in **every** camera mode; mouse wheel zoom for follow/top
+- Ocean-only animated seabird flybys: 8 repeating flocks, up to 96 birds, adjustable density
 - Configurable sunlight (time of day), wind speed and direction
 - Flight telemetry: altitude, speed, heading and flight status
 - Static-export deployment to GitHub Pages
@@ -38,6 +40,9 @@ Open http://localhost:3000. Run checks using `npm run typecheck` and `npm run bu
 | P | Pause / resume |
 | R | Reset |
 | H | Show / hide controls |
+| Mouse drag / arrow keys | Rotate/look up/down in the active camera |
+| Mouse wheel | Zoom follow / overhead camera |
+| Double-click on 3D view | Reset current camera angle |
 
 ## GitHub Pages
 
@@ -53,12 +58,13 @@ A URL is **not evidence that deployment has succeeded**. Check the repository Ac
 - `src/lib/world.ts` – terrain height and procedural obstacle definitions
 - `src/components/World.tsx` – scenery and lighting
 - `src/components/Drone.tsx` – drone geometry and rotor animation
-- `src/components/Simulator.tsx` – inputs, render loop, cameras, HUD
+- `src/components/Simulator.tsx` – inputs, per-camera free-look, render loop, HUD
+- `src/components/Seabirds.tsx` – instanced animated seabird flybys in ocean world
 - `docs/requirements.md` – scope and progression toward physically realistic simulation
 
 ## Current limitations
 
-The flight implementation is an assisted **simplified dynamics model**, not a rotor-level 6-DOF rigid-body solver. Procedural art is intended as an interactive foundation rather than the final photorealistic world. Terrain/building collision is approximate. Planned upgrades: GLB/PBR assets, physically grounded motor/rotor forces and angular dynamics, improved collision, richer terrain/vegetation/water, and performance profiling.
+The flight implementation is an assisted **simplified dynamics model**, not a rotor-level 6-DOF rigid-body solver. Procedural art is intended as an interactive foundation rather than the final photorealistic world. Terrain/building collision is approximate. Seabirds are a visual attraction with no bird collision or scoring yet. Planned upgrades: GLB/PBR assets, physically grounded motor/rotor forces and angular dynamics, improved collision, richer terrain/vegetation/water, and performance profiling.
 
 ## License
 
