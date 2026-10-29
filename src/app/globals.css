@@ -83,3 +83,134 @@ kbd { font-family: inherit; border: 1px solid #577085; border-bottom-width: 2px;
   .world-label { display: none; }
   .footer { position: relative; margin-top: 20px; }
 }
+
+
+/* Touch-first mobile flight layout: preserve the actual 3D viewport. */
+.mobile-flight-controls, .mobile-top-actions { display: none; }
+@media (pointer: coarse), (max-width: 700px) {
+  html, body { overscroll-behavior: none; height: 100%; }
+  .sim-shell {
+    position: fixed; inset: 0; width: 100%; height: 100dvh;
+    min-height: 0; overflow: hidden; touch-action: none;
+  }
+  .scene-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+  .scene-canvas canvas { touch-action: none; }
+  .header { position: absolute; inset: 0 0 auto; height: 56px; padding: 0 11px; z-index: 5; }
+  .brand { gap: 7px; letter-spacing: .08em; }
+  .brand-mark { width: 31px; height: 31px; font-size: 18px; }
+  .brand strong { font-size: 13px; }
+  .brand small { font-size: 7px; margin-top: 3px; }
+  .header-pill { font-size: 8px; padding: 6px 8px; }
+  .header-pill.subtle { display: none; }
+  .hud {
+    position: absolute; top: 59px; left: 9px; right: auto; bottom: auto;
+    margin: 0; padding: 10px; width: 185px; max-width: none;
+    z-index: 4; border-radius: 11px;
+  }
+  .hud-heading { font-size: 9px; margin-bottom: 7px; }
+  .hud-cards { gap: 5px; }
+  .hud-card { padding: 6px; border-radius: 6px; }
+  .hud-card span { font-size: 7px; margin-bottom: 3px; }
+  .hud-card strong { font-size: 17px; }
+  .hud-card small { font-size: 9px; }
+  .hud-status { font-size: 10px; margin-top: 7px; }
+  .hud-note { font-size: 8px; margin-top: 4px; }
+  .mobile-top-actions {
+    position: absolute; display: flex; flex-direction: column; align-items: stretch;
+    top: 61px; right: 9px; gap: 6px; z-index: 32;
+  }
+  .mobile-top-actions button {
+    padding: 9px 10px; background: rgba(12, 27, 42, .88);
+    border: 1px solid rgba(190, 215, 230, .4); color: #edf7ff;
+    border-radius: 8px; font-size: 11px; font-weight: 600;
+    backdrop-filter: blur(10px); touch-action: manipulation;
+  }
+  .control-panel { display: none; }
+  .control-panel.mobile-open {
+    display: block; position: absolute; top: 155px; bottom: auto;
+    right: 9px; left: auto; width: min(300px, calc(100vw - 18px));
+    max-width: none; max-height: calc(100dvh - 180px);
+    margin: 0; padding: 15px; z-index: 31; overflow-y: auto; touch-action: pan-y;
+  }
+  .control-panel.mobile-open input[type=range],
+  .control-panel.mobile-open select { touch-action: auto; }
+  .mobile-flight-controls {
+    position: absolute; display: flex; justify-content: space-between;
+    align-items: flex-end; left: 0; right: 0;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    z-index: 20; padding: 0 10px; gap: 6px;
+    pointer-events: none; user-select: none; -webkit-user-select: none;
+  }
+  .touch-stick-group {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 5px; flex: 0 0 auto; pointer-events: none;
+  }
+  .touch-stick-title {
+    font-size: 11px; color: #ecf7ff; font-weight: 750;
+    text-shadow: 0 1px 5px #07111e;
+  }
+  .touch-stick-caption {
+    font-size: 9px; color: #ebf5fd; text-align: center;
+    text-shadow: 0 1px 5px #07111e;
+  }
+  .touch-stick {
+    position: relative; width: clamp(104px, 30vw, 148px);
+    aspect-ratio: 1; border-radius: 50%;
+    border: 2px solid rgba(202, 237, 246, .76);
+    background: rgba(15, 35, 52, .37); backdrop-filter: blur(3px);
+    pointer-events: auto; touch-action: none; overscroll-behavior: none;
+    box-shadow: inset 0 0 30px rgba(21, 51, 73, .35), 0 0 18px rgba(7, 18, 31, .22);
+  }
+  .touch-stick-ring {
+    position: absolute; inset: 21%; border-radius: 50%;
+    border: 1px solid rgba(218, 242, 250, .35);
+  }
+  .touch-stick-guide { position: absolute; pointer-events: none; background: rgba(218, 242, 250, .16); }
+  .guide-horizontal { height: 1px; left: 8%; right: 8%; top: 50%; }
+  .guide-vertical { width: 1px; top: 8%; bottom: 8%; left: 50%; }
+  .touch-stick-thumb {
+    position: absolute; left: 50%; top: 50%; width: 40px; height: 40px;
+    background: rgba(102, 229, 194, .8); border: 2px solid #c1fff0;
+    border-radius: 50%; box-shadow: 0 0 20px rgba(87, 220, 196, .38);
+    pointer-events: none; will-change: transform;
+  }
+  .mobile-flight-actions {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: end; justify-content: center; align-items: stretch;
+    gap: 6px; width: min(27vw, 160px); margin-bottom: 21px;
+    pointer-events: auto;
+  }
+  .mobile-flight-actions button {
+    min-height: 39px; border: 1px solid rgba(174, 208, 224, .64);
+    border-radius: 9px; font-size: 10px; font-weight: 650;
+    color: #f1f9fc; background: rgba(13, 30, 48, .87);
+    padding: 5px 3px; touch-action: manipulation;
+  }
+  .mobile-flight-actions .mobile-action-primary {
+    grid-column: span 2; background: rgba(101, 229, 194, .94);
+    color: #0b292c; border-color: rgba(197, 254, 238, .8);
+    font-weight: 800;
+  }
+  .world-label, .footer, .show-help { display: none; }
+  .help-panel {
+    display: block; position: absolute; left: 9px; right: 9px;
+    top: 165px; bottom: auto; width: min(400px, calc(100vw - 18px));
+    margin: 0; padding: 13px; min-width: 0; max-height: calc(100dvh - 320px);
+    overflow-y: auto; transform: none; z-index: 35;
+    background: rgba(8, 20, 33, .94); touch-action: pan-y;
+  }
+  .help-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .help-grid > div { white-space: normal; font-size: 9px; }
+  .pause-indicator, .crash-indicator { z-index: 6; text-align: center; min-width: 180px; }
+}
+@media (pointer: coarse) and (max-height: 470px), (max-width: 700px) and (max-height: 470px) {
+  .touch-stick { width: clamp(92px, 22vh, 115px); }
+  .touch-stick-title, .touch-stick-caption { display: none; }
+  .mobile-flight-actions { margin-bottom: 0; width: min(22vw, 210px); }
+  .mobile-flight-actions button { min-height: 30px; padding: 3px; }
+  .hud { width: 165px; }
+  .hud-card strong { font-size: 15px; }
+  .hud-note { display: none; }
+  .control-panel.mobile-open { top: 126px; max-height: calc(100dvh - 132px); }
+  .help-panel { top: 120px; max-height: calc(100dvh - 145px); }
+}
