@@ -1,4 +1,4 @@
-# AeroScape Simulator – Requirements v1.3
+# AeroScape Simulator – Requirements v1.4
 
 ## Product objective
 
@@ -10,6 +10,11 @@ Develop a high-fidelity **browser-based** drone simulator with intuitive, game-l
 - Automatic stabilization rather than requiring the user to control four rotor outputs
 - Takeoff/land, pause/resume, reset, camera switching and HUD
 - Independent camera look direction for follow, FPV and overhead viewpoints
+- Phone touch interface with two independent, multitouch virtual sticks: left (movement) and right (yaw/altitude)
+- Touch actions for takeoff/land, camera cycle, pause, reset and access to environment/weather settings
+- Background key release and pointer cancellation reset flight inputs; no stuck throttle when contact ends
+- Mobile view remains full-screen; HUD compact and menus collapse when not needed
+- Reduced shadow/render quality on coarse-pointer devices to control GPU demand
 - Mouse drag and arrow keys adjust yaw/elevation, double-click resets view, scroll zooms follow/overhead
 - Customizable environment, time of day, wind speed and wind direction
 - Consistent behavior across frame rates and safe release of stuck keyboard input
@@ -56,6 +61,10 @@ For physically accurate operation, upgrade to:
 - Mouse drag, arrow keys and double-click work in each of the three camera modes, without changing flight controls.
 - Ocean world spawns and animates seabird flocks, while all other environments do not.
 - Bird density can be adjusted while flying without reloading the scene, and GPU draw calls remain bounded through instancing.
+- On mobile browsers, simultaneous touch steering and camera dragging do not interfere.
+- Both sticks return to zero input on release, cancellation and window blur.
+- Portrait and landscape layouts keep actionable virtual controls accessible.
+- GitHub Pages runs on real iOS Safari / Android Chrome (manual device validation required).
 - Static `next build` produces an `out/` directory for GitHub Pages.
 
 **Status:** These are acceptance criteria, not claims of completed verification. CI and browser testing must confirm them.
